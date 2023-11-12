@@ -4,14 +4,14 @@ export const Store:StoreModel[] =[
       {
          url:'http://localhost:3000/clients/getClients',
          sec:60,
-         recallDelay: 5,
+         recallDelay: 5000,
          loading: false,
          method:'GET',
       },
      {
          url:'http://localhost:3000/clients/getStatusLongPolling',
          sec:60,
-         recallDelay: 5,
+         recallDelay: 3000,
          loading: false,
          method:'GET',
      },

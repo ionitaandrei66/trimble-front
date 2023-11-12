@@ -7,7 +7,7 @@ import {
     HttpInterceptor,
     HttpRequest
 } from "@angular/common/http";
-import { Observable, throwError } from "rxjs";
+import {Observable, switchMap, throwError, timer} from "rxjs";
 import { catchError } from "rxjs/operators";
 import {ListService} from "./list.service";
 
@@ -18,7 +18,7 @@ export class RetryableService implements HttpInterceptor {
     constructor(private http: HttpClient, private list: ListService) {}
 
 
-    intercept(request: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
+  intercept(request: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
         return next.handle(request).pipe(
             catchError((error: HttpErrorResponse) => {
                 if (error.status === 404) {
@@ -41,13 +41,13 @@ export class RetryableService implements HttpInterceptor {
         if(storeRequest){
             if(storeRetryableRequest){
                 storeRetryableRequest.start =new Date();
-                const retryableRequest = this.getRetryableRequest(storeRetryableRequest);
+                const retryableRequest = this.getRetryableRequest(storeRetryableRequest,storeRequest.recallDelay);
                 storeRetryableRequest.loading = true;
                 return  this.makeRequest(retryableRequest, request,next);
             }else{
                if(!storeRequest?.start){
                    storeRequest.start = new Date();
-                   const retryableRequest = this.getRetryableRequest(request);
+                   const retryableRequest = this.getRetryableRequest(request,storeRequest.recallDelay);
                    storeRequest.loading = true;
                   return  this.makeRequest(retryableRequest, request,next);
                }else{
@@ -57,7 +57,7 @@ export class RetryableService implements HttpInterceptor {
                        storeRequest.loading = false;
                        return throwError(new Error('Retry limit reached'));
                    } else {
-                        const retryableRequest = this.getRetryableRequest(request);
+                        const retryableRequest = this.getRetryableRequest(request,storeRequest.recallDelay);
                        storeRequest.loading = true;
                        return   this.makeRequest(retryableRequest, request,next);
                    }
@@ -72,15 +72,18 @@ export class RetryableService implements HttpInterceptor {
     private makeRequest(config: any,request: HttpRequest<any>, next: HttpHandler): Observable<any> {
             const headers = config.headers || new HttpHeaders();
             const body = config.body || null;
-            return this.http.request(config.method, config.url, { body, headers }).pipe(
+        return timer(config.recallDelay).pipe(
+            switchMap(() => this.http.request(config.method, config.url, { body, headers }).pipe(
                 catchError((err) => {
                     return this.checkRequest(request,next);
                 })
-            );
+            ))
+        );
     }
 
-    private getRetryableRequest(originalRequest: any): any {
+    private getRetryableRequest(originalRequest: any, recallDelay?: number): any {
         return {
+            recallDelay: recallDelay ?? 0,
             method: originalRequest.method,
             url: originalRequest.url,
             body: originalRequest?.body ?? null
