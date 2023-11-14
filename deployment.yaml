@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trimble-front
+spec:
+  selector:
+    matchLabels:
+      app: trimble-front
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: trimble-front
+    spec:
+      containers:
+        - name: trimble-front-app
+          image: angular/trimble-front:v1
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 80
